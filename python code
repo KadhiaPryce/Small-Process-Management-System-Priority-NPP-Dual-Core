@@ -1,0 +1,405 @@
+import random
+import multiprocessing
+
+# Initializing list
+# Declaration of values
+idlist = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+dvalue = 0
+srl = []
+lid = random.randint(1, 20)
+plist = []
+processlist = []
+lock = multiprocessing.Lock()
+global task
+
+
+# ------------------------------------------------------------------------------------------------------------------
+
+# Shared Resource List
+def array_output():
+    for a in range(len(idlist)):
+        try:
+            srl.append([idlist[a], dvalue])
+        except Exception as e:
+            print(e)
+
+
+array_output()
+print("The Original list is : " + str(srl))
+
+
+# ------------------------------------------------------------------------------------------------------------------
+
+# Task Functions
+def add():
+    lock.acquire()
+    value = random.randint(0, 100)
+    pair = [lid, value]
+    print("\nAdd - Random Record Generated : " + str(pair))
+    try:
+        srl[lid - 1][1] = value
+        print("\nThe Add SRL List: " + str(srl))
+    except IndexError:
+        print("Index cannot be found! Check index referencing!")
+    lock.release()
+
+
+def remove():
+    lock.acquire()
+    r_id = random.randint(1, 20)
+    print("\nRemove - Random Record ID Generated : " + str(r_id))
+    try:
+        srl[lid - 1][1] = 0
+        print("\nThe Remove SRL List: " + str(srl))
+    except IndexError:
+        print("Index cannot be found! Check index referencing!")
+    lock.release()
+
+
+def retrieve():
+    r_id = random.randint(1, 20)
+    print("\nRetrieved - Random Record ID Generated : " + str(r_id))
+
+    try:
+        print("The Retrieved record is " + str(srl[lid - 1][1]))
+    except ValueError:
+        print("Check allocation/assignment of indexes!")
+
+
+def total():
+    sumTotal = 0
+    for a in range(len(idlist)):
+        try:
+            sumTotal += srl[a - 1][1]
+        except IndexError:
+            print("Index cannot be found! Check index referencing.")
+    return sumTotal
+
+
+print("\nThe Total is " + str(total()))
+
+print("--------------------------------------------------------------------------------------------------------------"
+      "-----------------------------------------")
+
+
+# ------------------------------------------------------------------------------------------------------------------
+# Process Class
+class Process:
+
+    # Primary Constructor of Process
+    def __init__(self, pid, task, priority, at, burst_time, start_time=0, blocked_time=0, end_time=0):
+        self.pid = pid
+        self.task = task
+        self.priority = priority
+        self.arrival_time = at
+        self.burst_time = burst_time
+        self.start_time = start_time
+        self.blocked_time = blocked_time
+        self.end_time = end_time
+
+
+def create_list(start, end):
+    num = list(range(start, end + 1))
+    return random.sample(num, k=len(num))
+
+
+process_ids = create_list(1, 20)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+class NPP:
+    # Create Process function
+    @staticmethod
+    def process(process_number):
+        global processlist, task
+        for i in range(0, process_number):
+            try:
+                temp = []
+                priority = random.randint(1, 5)
+                task = random.randint(1, 4)
+                arrival_time = random.randint(0, 29)
+                burst_time = random.randint(1, 5)
+                temp.extend([process_ids[i], task, priority, arrival_time, burst_time, 0])
+                processlist.append(temp)
+            except IndexError:
+                print("Index cannot be found!")
+                print("\nCheck index referencing!")
+            except NameError:
+                print("Name of variables cannot be identified!")
+        print(processlist)
+        NPP.schedule(processlist)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # Schedule and Synchronisation Process
+    @staticmethod
+    def schedule(pl):
+        global task
+        etl = []
+        start_time = 0
+        cpu1 = []
+        cpu2 = []
+        rq = []
+        pl.sort(key=lambda x: x[3])
+        for i in range(len(pl)):
+            try:
+                ready_queue = []
+                normal_queue = []
+                temp = []
+                for j in range(len(pl)):
+                    if (pl[j][3] <= start_time) and (pl[j][5]) == 0:
+                        temp.extend([pl[j][0], pl[j][1], pl[j][2],
+                                     pl[j][3], pl[j][4]])
+                        ready_queue.append(temp)
+                    elif pl[j][5] == 0:
+                        temp.extend([pl[j][0], pl[j][1], pl[j][2],
+                                     pl[j][3], pl[j][4]])
+                        normal_queue.append(temp)
+                if len(ready_queue) != 0:
+                    ready_queue.sort(key=lambda x: x[2], reverse=False)
+                    ready_queue.sort(key=lambda x: x[3], reverse=False)
+                    end_time = start_time + ready_queue[0][4]
+                    etl.append(end_time)
+                    for k in range(len(pl)):
+                        if pl[k][0] == ready_queue[0][0]:
+                            break
+                    pl[k][5] = 1
+                    pl[k].append(end_time)
+                    rq.append(pl[k])
+                elif (len(ready_queue)) == 0:
+                    if start_time < normal_queue[0][3]:
+                        start_time = normal_queue[0][3]
+                    start_time = start_time + normal_queue[0][4]
+                    end_time = start_time
+                    etl.append(end_time)
+                    for k in range(len(pl)):
+                        if pl[k][0] == normal_queue[0][0]:
+                            break
+                    pl[k][5] = 1
+                    pl[k].append(end_time)
+                    rq.append(pl[k])
+            except IndexError:
+                print("Index cannot be found!")
+                print("\nCheck index referencing!")
+            except NameError:
+                print("Name of variables cannot be identified!")
+            except ValueError:
+                print("An integer was not identified at this index!")
+                print("\nCheck index referencing!")
+            except SyntaxError:
+                print("The syntax is not right! Check for missing spaces & indentation and colons")
+        turnaround = turnaround_time(pl)
+        waiting = waiting_time(pl)
+        print_process(pl, turnaround, waiting)
+
+        # -------------------------------------------------------------------------------------------------------------
+        print("\nReady Queue: " + str(rq))
+
+        p1 = multiprocessing.Process(target=add, args=())
+        p2 = multiprocessing.Process(target=remove, args=())
+
+        for m in range(len(rq)):
+            if len(rq) != 0:
+                if len(cpu1) == 0:
+                    cpu1.append(rq[0])
+                    rq.pop(0)
+                    print("\nCPU1: " + str(cpu1))
+                    print("CPU1 is now in running state!")
+                    print("CPU2 is idle!")
+                    for k in range(len(cpu1)):
+                        if cpu1[k][1] == 1:
+                            try:
+                                p1.start()
+                                p1.join()
+                            except AssertionError:
+                                "AssertionError: Cannot start a process twice, so try again."
+                        elif cpu1[k][1] == 2:
+                            try:
+                                p2.start()
+                                p2.join()
+                            except AssertionError:
+                                "AssertionError: Cannot start a process twice, so try again."
+                        elif cpu1[k][1] == 3:
+                            retrieve()
+                        elif cpu1[k][1] == 4:
+                            total()
+                            print("\nThe Total is " + str(total()))
+                        print("------------------------------------------------------------------------------ "
+                              "-----------------------------------------------------")
+                    print("\nReady Queue: " + str(rq))
+                if len(cpu2) == 0:
+                    cpu2.append(rq[0])
+                    rq.pop(0)
+                    print("\nCPU2: " + str(cpu2))
+                    print("CPU2 is now in running state!")
+                    for k in range(len(cpu2)):
+                        if cpu2[k][1] == 1:
+                            try:
+                                p1.start()
+                                p1.join()
+                            except AssertionError:
+                                "AssertionError: Cannot start a process twice, so try again."
+                        elif cpu2[k][1] == 2:
+                            try:
+                                p2.start()
+                                p2.join()
+                            except AssertionError:
+                                "AssertionError: Cannot start a process twice, so try again."
+                        elif cpu2[k][1] == 3:
+                            retrieve()
+                            print("\nThe Retrieved SRL List: " + str(srl))
+                        elif cpu2[k][1] == 4:
+                            total()
+                            print("\nThe Total is " + str(total()))
+                        print("--------------------------------------------------------------------------------"
+                              "-----------------------------------------------------")
+                    print("\nReady Queue: " + str(rq))
+# ------------------------------------------------------------------------------------------------------------------
+                for p in range(1):
+                    if len(cpu1) != 0 and len(cpu2) != 0:
+                        print("\nBoth Processes are full!")
+                        if cpu1[p][4] < cpu2[p][4]:
+                            cpu1.pop()
+                            print("Process Complete. CPU1 is idle.")
+                            break
+                        if cpu1[p][4] > cpu2[p][4]:
+                            cpu2.pop()
+                            print("Process Complete. CPU2 is idle.")
+                            break
+                        if cpu1[p][4] == cpu2[p][4]:
+                            if cpu1[p][3] < cpu2[p][3]:
+                                cpu1.pop()
+                                print("Process Complete. CPU1 is idle.")
+                                for k in range(len(cpu1)):
+                                    if cpu1[k][1] == 1:
+                                        try:
+                                            p1.start()
+                                            p1.join()
+                                        except AssertionError:
+                                            "AssertionError: Cannot start a process twice, so try again."
+                                    elif cpu1[k][1] == 2:
+                                        try:
+                                            p2.start()
+                                            p2.join()
+                                        except AssertionError:
+                                            "AssertionError: Cannot start a process twice, so try again."
+                                    elif cpu1[k][1] == 3:
+                                        retrieve()
+                                    elif cpu1[k][1] == 4:
+                                        total()
+                                        print("\nThe Total is " + str(total()))
+                            else:
+                                cpu2.pop()
+                                print("Process Complete. CPU2 is idle.")
+                                for k in range(len(cpu2)):
+                                    if cpu2[k][1] == 1:
+                                        try:
+                                            p1.start()
+                                            p1.join()
+                                        except AssertionError:
+                                            "AssertionError: Cannot start a process twice, so try again."
+                                    elif cpu2[k][1] == 2:
+                                        try:
+                                            p2.start()
+                                            p2.join()
+                                        except AssertionError:
+                                            "AssertionError: Cannot start a process twice, so try again."
+                                    elif cpu2[k][1] == 3:
+                                        retrieve()
+                                        print("\nThe Retrieved SRL List: " + str(srl))
+                                    elif cpu2[k][1] == 4:
+                                        total()
+                                        print("\nThe Total is " + str(total()))
+                                    print("-----------------------------------------------------------------------"
+                                          "-----------------------------------------------------")
+            else:
+                print("\nReady Queue is Empty!")
+
+
+# ------------------------------------------------------------------------------------------------------------------
+
+# Turnaround Time, Waiting Time & their Averages
+def turnaround_time(pl):
+    ttt = 0
+    for i in range(len(pl)):
+        try:
+            tt = pl[i][6] - pl[i][3]
+            ttt = ttt + tt
+            pl[i].append(tt)
+        except IndexError:
+            print("Index cannot be found!")
+            print("\nCheck index referencing!")
+        except TypeError:
+            print("A mathematical operation on a string and a numerical value cannot be done!")
+    try:
+        averageTT = ttt / len(pl)
+        return averageTT
+    except ZeroDivisionError:
+        print("Second argument to the division or modulo operation was zero!")
+
+
+def waiting_time(pl):
+    twt = 0
+    for i in range(len(pl)):
+        try:
+            wt = pl[i][7] - pl[i][4]
+            twt = twt + wt
+            pl[i].append(wt)
+        except IndexError:
+            print("Index cannot be found!")
+            print("\nCheck index referencing!")
+        except TypeError:
+            print("A mathematical operation on a string and a numerical value cannot be done!")
+    try:
+        averageWT = twt / len(pl)
+        return averageWT
+    except ZeroDivisionError:
+        print("Second argument to the division or modulo operation was zero!")
+
+
+# ------------------------------------------------------------------------------------------------------------------
+
+# Print Process Information in Tabular Format
+def print_process(pl, averageTT, averageWT):
+    pl.sort(key=lambda x: x[0])
+    print("\n")
+    print("Process ID     Task         Priority      Arrival Time      Burst Time     Execution   Completion Time   "
+          "Turnaround Time   Waiting Time ")
+    for i in range(len(pl)):
+        for j in range(len(pl[i])):
+            try:
+                print(pl[i][j], end="\t\t\t\t")
+            except Exception as e:
+                print("The", e.__class__, " has occurred.")
+
+        print()
+    print(f"\nAverage Turnaround Time: {averageTT}")
+    print(f"Average Waiting Time: {averageWT}")
+
+
+# ------------------------------------------------------------------------------------------------------------------
+
+
+# Main function
+if __name__ == "__main__":
+    try:
+        no_of_processes = int(input("\nEnter number of processes: "))
+        npp = NPP()
+        npp.process(no_of_processes)
+    except ValueError:
+        print("You placed a string, not a number!")
+        print("\nTry Again!")
+        no_of_processes = int(input("\nEnter number of processes: "))
+        npp = NPP()
+        npp.process(no_of_processes)
+    except IndexError:
+        print("Number was either larger or less than 20!")
+        print("\nTry Again!")
+        no_of_processes = int(input("\nEnter number of processes: "))
+        npp = NPP()
+        npp.process(no_of_processes)
+    except ZeroDivisionError:
+        print("Second argument to the division or modulo operation was zero!")
+        print("\nTry Again!")
+        no_of_processes = int(input("\nEnter number of processes: "))
+        npp = NPP()
+        npp.process(no_of_processes)
